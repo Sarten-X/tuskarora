@@ -13,9 +13,6 @@
 #define DEBUG_SWITCH_1 36
 #define DEBUG_SWITCH_2 37
 
-// Set the debug level here
-int DEBUG = DEBUG_NONE
-
 // Standard libraries
 #include <stdint.h>
 #include <Wire.h>
@@ -77,29 +74,37 @@ bool faultSoundInitialized = false;
 // operation, it should be set to 24.
 #define MAX_LEVERS 24 // Reduce lever checks for debugging
 
+// Set the debug level here
+uint8_t DEBUG = DEBUG_NONE;
+
 // Initialization routine
 void setup() {
   // Delay to allow peripheral boards to start up
-  delay(4000);
+  delay(2000);
   
+  pinMode(DEBUG_SWITCH_1, INPUT);
+  pinMode(DEBUG_SWITCH_2, INPUT);
   DEBUG = (
-      digitalRead(DEBUG_SWITCH_1) == LOW ? 2 : 0
-    ) + (
-      digitalRead(DEBUG_SWITCH_2) == LOW ? 1 : 0
-    );
-
+    digitalRead(DEBUG_SWITCH_1) == LOW ? 1 : 0
+  ) + (
+    digitalRead(DEBUG_SWITCH_2) == LOW ? 2 : 0
+  );
+    
   // Initialize serial console for debugging
   if (DEBUG) {
     Serial.begin(115200);
-    Serial.println("Tusk Railroad is initialized.");
+    Serial.print("Tusk Railroad is initialized. Output level is ");
+    Serial.println(DEBUG);
   }
+
+  sleep(2000);
   
   // Initialize IO expander interface
   Wire.begin();
   io.init();
   
   // Initialize railroad objects
-  signals.init(io);
+  signals.init(DEBUG, io);
   railroad.init(signals);
   levers.init();
   
@@ -162,7 +167,7 @@ void loop() {
     railroad.mainMode = MODE_OPERATE;
     // Check each lever. If any are pulled back, stay in setup mode
 
-    for (int leverNum = 0; leverNum < MAX_LEVERS; leverNum++) {
+     for (int leverNum = 0; leverNum < MAX_LEVERS; leverNum++) {
       if ((newLeverState >> leverNum) & 0b1 == LEVER_BACK) {
         if (DEBUG >= DEBUG_TRACE) {
           Serial.print("Lever still back - lever array position: ");

@@ -14,9 +14,6 @@
 // DEBUG_VERBOSE sends verbose status messages to the serial console
 #define DEBUG_VERBOSE 3
 
-// Set the debug level here
-#define DEBUG DEBUG_NONE
-
 // A flag value indicating that a given chip or pin connection is not present
 // for a signal.
 #define NO_CONNECTION 255
@@ -85,6 +82,9 @@ class Signals {
 
     // Reference to the I/O controller to be used
     MultiMCP23017 io;
+
+    // Configurable state of debugging messages
+    uint8_t DEBUG;
 };
 
 #endif

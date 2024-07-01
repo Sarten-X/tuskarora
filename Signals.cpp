@@ -1,7 +1,8 @@
 #include "Signals.h"
 
 // Initialize the Signals objects with a given I/O controller
-void Signals::init(MultiMCP23017 io) {
+void Signals::init(uint8_t DEBUG, MultiMCP23017 io) {
+  this->DEBUG = DEBUG;
   this->io = io;
   for (int i = 0; i < MAX_SIGNALS; i++) {
     this->signalStates[i] = new Signal();
@@ -133,7 +134,7 @@ void Signals::setSignalState(uint8_t signalNumber, SignalState state) {
       if (sig->panelYellowChip != NO_CONNECTION && sig->panelYellowPin != NO_CONNECTION) { this->io.digitalWrite(sig->panelYellowChip, sig->panelYellowPin, LOW); }
       if (sig->panelGreenChip != NO_CONNECTION && sig->panelGreenPin != NO_CONNECTION) { this->io.digitalWrite(sig->panelGreenChip, sig->panelGreenPin, HIGH); }
       break;
-  }
+  } 
   if (DEBUG >= DEBUG_TRACE) {
     Serial.println("Signal change complete.");
   }
