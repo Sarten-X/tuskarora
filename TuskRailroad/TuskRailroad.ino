@@ -149,134 +149,10 @@ void loop() {
   }
 
   if (railroad.mainMode == MODE_SETUP) {
-    // Setup mode. Raise a fault for every lever that's pulled back.
-    faultSoundInitialized = false;  // Reset the state of fault sound initialization (necessary for runtime state resets)
-    railroad.faults.setLevers(newLeverState);
-    // Try to get to operate mode
-    railroad.mainMode = MODE_OPERATE;
-    // Check each lever. If any are pulled back, stay in setup mode
-
-     for (int leverNum = 0; leverNum < MAX_LEVERS; leverNum++) {
-      if ((newLeverState >> leverNum) & 0b1 == LEVER_BACK) {
-        if (DEBUG >= DEBUG_TRACE) {
-          Serial.print("Lever still back - lever array position: ");
-          Serial.println(leverNum);
-        }
-        railroad.mainMode = MODE_SETUP;
-      }
-    }
-    
-    // Update the lever buffer with the current lever state
-    levers.setLevers(newLeverState);
-
-    if (railroad.mainMode == MODE_OPERATE) {  // All the levers are forward for the first time
-      if (DEBUG >= DEBUG_TRACE) {
-        Serial.println("System is going to MODE_OPERATE");
-      }
-      
-      signals.setSignalState(SIGNAL_STATUS, SignalState::Red);  // set status indicator to red
-      
-    // turn all signals to green for 2 seconds then to yellow then to what is required by lever position which is red
-     for (int i = 0; i < MAX_SIGNALS-1; i++) {
-       signals.setSignalState(i, SignalState::Green);
-       delay(250);
-     }
-      delay(1000);  
-     for (int i = 0; i < MAX_SIGNALS-1; i++) {
-      signals.setSignalState(i, SignalState::Yellow);
-      delay(250);
-     }
-      delay(1000);  
-      
-      // Update all signal aspects to match the lever state
-      for (int i = 0; i < MAX_SIGNALS-1; i++) {
-        railroad.updateSignal(i, levers, signals);
-        delay(250);
-      }
-      delay(1000); 
-      
-      // Set all turnouts to initial position
-      railroad.resetTurnouts(io);
-
-      // Set the status indicator to show normal operation
-      signals.setSignalState(SIGNAL_STATUS, SignalState::Green);
-
-      // Clear the audio buffer
-      DacAudio.StopAllSounds();
-
-      if (DEBUG >= DEBUG_TRACE) {
-        Serial.println("System is ready to OPERATE");
-      }
-    }
-    
+    runSetup(newLeverState);
   } else if (railroad.mainMode == MODE_OPERATE || railroad.mainMode == MODE_OVERRIDE) {
-    // Operate or override modes
-    // Retrieve old lever state to compare & find changes
-    oldLevers.setLevers(levers.getLevers());
-    if (DEBUG >= DEBUG_VERBOSE) {
-      Serial.print("Old state is ");
-      Serial.println(oldLevers.getLevers(), BIN);
-    }
-    
-    // Update the lever buffer
-    levers.setLevers(newLeverState);
-    
-    // Check if levers have changed
-    if (oldLevers.getLevers() != newLeverState) {
-      
-      // Play lever sound, with mixing option
-      if (railroad.enableSound) {
-        DacAudio.Play(&LeverSound, true);
-      }
-      
-      // Identify changed levers
-      for (int leverNum = 0; leverNum < MAX_LEVERS; leverNum++) {
-
-        // Compare each lever's current state to the last-seen value
-        bool currentState = (newLeverState >> leverNum) & 0b1;
-        bool oldState = (oldLevers.getLevers() >> leverNum) & 0b1;
-
-        // If values differ, the lever has been toggled
-        if (currentState != oldState) {
-          
-          if (DEBUG >= DEBUG_TRACE) {
-            Serial.print("Change on lever array position # ");
-            Serial.println(leverNum); 
-            if (DEBUG >= DEBUG_STEP) {
-              delay(5000);
-            }
-          }
-          
-          // If the lever was faulted (and not overridden), just clear it.
-          if (railroad.faults.getLever(leverNum) && railroad.mainMode == MODE_OPERATE) {
-            railroad.faults.setLever(leverNum, false);
-          }
-          else {  // If the lever wasn't faulted
-          
-            // Check for current fault conditions
-            bool fault = false;
-            if (railroad.checkFaults(leverNum, oldLevers, signals)) {
-              // Record the fault in the fault object
-              railroad.faults.setLever(leverNum, true);
-              fault = true;
-            }
-  
-            // If no fault was found, or if faults are being overridden
-            // then actions will be run
-            if (!fault || railroad.mainMode == MODE_OVERRIDE) {
-              // Take action for changed levers based on their current state
-              if (currentState == LEVER_BACK) {
-                railroad.leverBack(leverNum, levers, signals, io);
-              } else {
-                railroad.leverForward(leverNum, levers, signals, io);
-              }
-            }
-          } // End non-faulted lever change
-          
-        } // End single-lever change detected
-      } // End loop through levers
-    } // End large change detected
-  } // End operation mode
+    runOperate(newLeverState);
+  }
 
   // Play alarm for any faulted levers
   // Alarms are not active in override mode.
@@ -375,4 +251,142 @@ void loop() {
   while (digitalRead(DEBUG_ENABLE_RUN) == LOW) {
     delay(1000);
   }
+}
+
+// Setup mode. Raise a fault for every lever that's pulled back.
+void runSetup(uint32_t newLeverState) {
+  // Reset the state of fault sound initialization (necessary for runtime state resets)
+  faultSoundInitialized = false;
+  railroad.faults.setLevers(newLeverState);
+  
+  // Try to get to operate mode
+  railroad.mainMode = MODE_OPERATE;
+
+  // Check each lever. If any are pulled back, stay in setup mode
+  for (int leverNum = 0; leverNum < MAX_LEVERS; leverNum++) {
+    if ((newLeverState >> leverNum) & 0b1 == LEVER_BACK) {
+      if (DEBUG >= DEBUG_TRACE) {
+        Serial.print("Lever still back - lever array position: ");
+        Serial.println(leverNum);
+      }
+      railroad.mainMode = MODE_SETUP;
+    }
+  }
+  
+  // Update the lever buffer with the current lever state
+  levers.setLevers(newLeverState);
+
+  if (railroad.mainMode == MODE_OPERATE) {  // All the levers are forward for the first time
+    operationAnimation();
+  }
+}
+
+// Animate all signals and switches to a safe position
+void operationAnimation() {
+  if (DEBUG >= DEBUG_TRACE) {
+    Serial.println("System is going to MODE_OPERATE");
+  }
+  
+  signals.setSignalState(SIGNAL_STATUS, SignalState::Red);  // set status indicator to red
+  
+  // turn all signals to green for 2 seconds then to yellow then to what is required by lever position which is red
+  for (int i = 0; i < MAX_SIGNALS-1; i++) {
+    signals.setSignalState(i, SignalState::Green);
+    delay(250);
+  }
+  delay(1000);  
+  for (int i = 0; i < MAX_SIGNALS-1; i++) {
+    signals.setSignalState(i, SignalState::Yellow);
+    delay(250);
+  }
+  delay(1000);  
+  
+  // Update all signal aspects to match the lever state
+  for (int i = 0; i < MAX_SIGNALS-1; i++) {
+    railroad.updateSignal(i, levers, signals);
+    delay(250);
+  }
+  delay(1000); 
+  
+  // Set all turnouts to initial position
+  railroad.resetTurnouts(io);
+
+  // Set the status indicator to show normal operation
+  signals.setSignalState(SIGNAL_STATUS, SignalState::Green);
+
+  // Clear the audio buffer
+  DacAudio.StopAllSounds();
+
+  if (DEBUG >= DEBUG_TRACE) {
+    Serial.println("System is ready to OPERATE");
+  }
+}
+
+void runOperate(uint32_t newLeverState) {
+  // Operate or override modes
+  // Retrieve old lever state to compare & find changes
+  oldLevers.setLevers(levers.getLevers());
+  if (DEBUG >= DEBUG_VERBOSE) {
+    Serial.print("Old state is ");
+    Serial.println(oldLevers.getLevers(), BIN);
+  }
+  
+  // Update the lever buffer
+  levers.setLevers(newLeverState);
+  
+  // Check if levers have changed
+  if (oldLevers.getLevers() != newLeverState) {
+    
+    // Play lever sound, with mixing option
+    if (railroad.enableSound) {
+      DacAudio.Play(&LeverSound, true);
+    }
+    
+    // Identify changed levers
+    for (int leverNum = 0; leverNum < MAX_LEVERS; leverNum++) {
+
+      // Compare each lever's current state to the last-seen value
+      bool currentState = (newLeverState >> leverNum) & 0b1;
+      bool oldState = (oldLevers.getLevers() >> leverNum) & 0b1;
+
+      // If values differ, the lever has been toggled
+      if (currentState != oldState) {
+        
+        if (DEBUG >= DEBUG_TRACE) {
+          Serial.print("Change on lever array position # ");
+          Serial.println(leverNum); 
+          if (DEBUG >= DEBUG_STEP) {
+            delay(5000);
+          }
+        }
+        
+        // If the lever was faulted (and not overridden), just clear it.
+        if (railroad.faults.getLever(leverNum) && railroad.mainMode == MODE_OPERATE) {
+          railroad.faults.setLever(leverNum, false);
+        }
+        else {  // If the lever wasn't faulted
+        
+          // Check for current fault conditions
+          bool fault = false;
+          if (railroad.checkFaults(leverNum, oldLevers, signals)) {
+            // Record the fault in the fault object
+            railroad.faults.setLever(leverNum, true);
+            fault = true;
+          }
+
+          // If no fault was found, or if faults are being overridden
+          // then actions will be run
+          if (!fault || railroad.mainMode == MODE_OVERRIDE) {
+            // Take action for changed levers based on their current state
+            if (currentState == LEVER_BACK) {
+              railroad.leverBack(leverNum, levers, signals, io);
+            } else {
+              railroad.leverForward(leverNum, levers, signals, io);
+            }
+          }
+        } // End non-faulted lever change
+        
+      } // End single-lever change detected
+    } // End loop through levers
+  } // End large change detected
 }
