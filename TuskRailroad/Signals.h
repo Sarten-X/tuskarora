@@ -5,21 +5,13 @@
 // Increase it to add support for more signals.
 #define MAX_SIGNALS 15
 
-// DEBUG_NONE is for normal operations
-#define DEBUG_NONE 0
-// DEBUG_TRACE monitors major program flow
-#define DEBUG_TRACE 1
-// DEBUG_STEP adds delays that will prevent audio playback from working properly
-#define DEBUG_STEP 2
-// DEBUG_VERBOSE sends verbose status messages to the serial console
-#define DEBUG_VERBOSE 3
-
 // A flag value indicating that a given chip or pin connection is not present
 // for a signal.
 #define NO_CONNECTION 255
 
 #include <stdint.h>
 #include "MultiMCP.h"
+#include "debug.h"
 
 // An enumeration of possible signal states.
 enum SignalState {

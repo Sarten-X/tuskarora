@@ -6,6 +6,7 @@
 
 #include "MCP23017.h"
 #include <stdint.h>
+#include "debug.h"
 
 class MultiMCP23017 {
   // A single class with support for 8 MCP23017 I/O expanders

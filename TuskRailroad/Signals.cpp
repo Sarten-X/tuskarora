@@ -1,8 +1,7 @@
 #include "Signals.h"
 
 // Initialize the Signals objects with a given I/O controller
-void Signals::init(uint8_t DEBUG, MultiMCP23017 io) {
-  this->DEBUG = DEBUG;
+void Signals::init(MultiMCP23017 io) {
   this->io = io;
   for (int i = 0; i < MAX_SIGNALS; i++) {
     this->signalStates[i] = new Signal();

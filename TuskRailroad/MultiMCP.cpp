@@ -5,21 +5,32 @@ MultiMCP23017::MultiMCP23017() { }
 
 // Initialize routine creates the interface objects
 void MultiMCP23017::init() {
-  this->chips[0] = new MCP23017(0x20);
-  this->chips[1] = new MCP23017(0x21);
-  this->chips[2] = new MCP23017(0x22);
-  this->chips[3] = new MCP23017(0x23);
-  this->chips[4] = new MCP23017(0x24);
-  this->chips[5] = new MCP23017(0x25);
-  this->chips[6] = new MCP23017(0x26);
-  this->chips[7] = new MCP23017(0x27);
   for (int i = 0; i < 8; i++) {
+    if (DEBUG >= DEBUG_TRACE) {
+      Serial.print("Instantiating MCP23017 ");
+      Serial.print(i);
+      Serial.print("...");
+    }
+    this->chips[i] = new MCP23017(0x20 + i);
+    if (DEBUG >= DEBUG_TRACE) {
+      Serial.println(" ...Done.");
+    }
+  }
+  for (int i = 0; i < 8; i++) {
+    if (DEBUG >= DEBUG_TRACE) {
+      Serial.print("Initializing MCP23017 ");
+      Serial.print(i);
+      Serial.print("...");
+    }
     // Initialize all ports to low
     this->chips[i]->writeRegister(MCP23017Register::GPIO_A, 0b00);
     this->chips[i]->writeRegister(MCP23017Register::GPIO_B, 0b00);
     // Initialize all ports to output mode
     this->chips[i]->portMode(MCP23017Port::A, 0b0);
     this->chips[i]->portMode(MCP23017Port::B, 0b0);
+    if (DEBUG >= DEBUG_TRACE) {
+      Serial.println(" ...Done.");
+    }
   }
 }
 

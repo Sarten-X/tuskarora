@@ -1,22 +1,10 @@
-// If nonzero, DEBUG enables the use of a serial console for state observation.
-
-// DEBUG_NONE is for normal operations
-#define DEBUG_NONE 0
-// DEBUG_TRACE monitors major program flow
-#define DEBUG_TRACE 1
-// DEBUG_STEP adds delays that will prevent audio playback from working properly
-#define DEBUG_STEP 2
-// DEBUG_VERBOSE sends verbose status messages to the serial console
-#define DEBUG_VERBOSE 3
-
-// Debug switch pin numbers, with switch 1 as least-significant bit
-#define DEBUG_SWITCH_1 36
-#define DEBUG_SWITCH_2 37
-
 // Standard libraries
 #include <stdint.h>
 #include <Wire.h>
 #include <Arduino.h>
+
+// Debugging capabilities
+#include "debug.h"
 
 // XT DAC audio library
 #include "MusicDefinitions.h"
@@ -84,6 +72,7 @@ void setup() {
   
   pinMode(DEBUG_SWITCH_1, INPUT);
   pinMode(DEBUG_SWITCH_2, INPUT);
+  pinMode(DEBUG_ENABLE_RUN, INPUT);
   DEBUG = (
     digitalRead(DEBUG_SWITCH_1) == LOW ? 1 : 0
   ) + (
@@ -97,14 +86,14 @@ void setup() {
     Serial.println(DEBUG);
   }
 
-  sleep(2000);
+  delay(2000);
   
   // Initialize IO expander interface
   Wire.begin();
   io.init();
   
   // Initialize railroad objects
-  signals.init(DEBUG, io);
+  signals.init(io);
   railroad.init(signals);
   levers.init();
   
@@ -382,5 +371,8 @@ void loop() {
   
   if (DEBUG >= DEBUG_STEP) {
     delay(2000);
+  }
+  while (digitalRead(DEBUG_ENABLE_RUN) == LOW) {
+    delay(1000);
   }
 }

@@ -11,6 +11,7 @@
 #include "MultiMCP.h"
 #include "Levers.h"
 #include "Signals.h"
+#include "debug.h"
 
 // Define constants for turnout status
 #define TO_DIVERGE HIGH

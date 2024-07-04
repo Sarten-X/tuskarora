@@ -5,6 +5,7 @@
 #define LEVER_BACK 1
 
 #include <stdint.h>
+#include "debug.h"
 
 class Levers
 {
